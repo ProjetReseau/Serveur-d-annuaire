@@ -9,12 +9,14 @@
 #include <dirent.h>
 #include"fonction_annuaire.h"
 
-#define BUFFERSIZE 512
+#define BUFFERSIZE 2048
 
 int info_fichier(char * message, char * nom_fichier){
   char buffer[BUFFERSIZE];
   char *pointeur = NULL;
   char chemin[40], mess[100];
+  bzero(chemin, 40);
+  bzero(mess, 200);
   sprintf(chemin, "./Fichier/%s.txt", nom_fichier);
   int file=open(chemin, O_RDONLY);
 
@@ -28,18 +30,21 @@ int info_fichier(char * message, char * nom_fichier){
 
   pointeur+=1;
   while(*pointeur != '-'){
-    while (*pointeur != '\n' && *pointeur != '-'){
+      while (*pointeur != '\n' && *pointeur != '-'){
+        pointeur++;
+      }
       pointeur++;
+      if (*pointeur != ' '){
+        while(*pointeur != ' ' && *pointeur != '-'){
+          sprintf(message,"%s%c", message, *pointeur);
+          pointeur++;
+        }
+        sprintf(message,"%s\n", message);
+      }
     }
-    pointeur++;
-    while(*pointeur != ' ' && *pointeur != '-'){
-      sprintf(message,"%s%c", message, *pointeur);
-      pointeur++;
-    }
-    sprintf(message,"%s ", message);
-  }
   sprintf(mess,"%s", message);
-  sprintf(message,"Personnes présentes : %s", mess);
+  printf("message : %s\n", mess);
+  sprintf(message,"Personnes présentes dans le groupe %s :\n%s", nom_fichier, mess);
   close(file);
   return EXIT_SUCCESS;
 
@@ -47,7 +52,10 @@ int info_fichier(char * message, char * nom_fichier){
 
 int info(char * message){
   char groupe[100], mess[200];
+  bzero(groupe, 100);
+  bzero(mess, 200);
   //system("ls ./Fichier | grep ^[^a][^n][^n][^u][^a][^i][^r][^e] > resultat.txt");
+
   system("ls ./Fichier > resultat.txt");
   int file2=open("resultat.txt", O_RDONLY);
 
@@ -75,18 +83,21 @@ int info(char * message){
 
   pointeur+=1;
   while(*pointeur != '-'){
-    while (*pointeur != '\n' && *pointeur != '-'){
+      while (*pointeur != '\n' && *pointeur != '-'){
+        pointeur++;
+      }
       pointeur++;
-    }
-    pointeur++;
-    while(*pointeur != ' ' && *pointeur != '-'){
-      sprintf(message,"%s%c", message, *pointeur);
-      pointeur++;
-    }
-    sprintf(message,"%s ", message);
+      if (*pointeur != ' '){
+        while(*pointeur != ' ' && *pointeur != '-'){
+          sprintf(message,"%s%c", message, *pointeur);
+          pointeur++;
+        }
+        sprintf(message,"%s\n", message);
+      }
   }
   sprintf(mess,"%s", message);
-  sprintf(message,"Personnes présentes : %s\nGroupes présents : \n%s", mess, groupe);
+  printf("message : %s\n", mess);
+  sprintf(message,"\nPersonnes présentes : \n%sGroupes présents :\n%s", mess, groupe);
   close(file);
   return EXIT_SUCCESS;
 }
@@ -134,73 +145,6 @@ int lecture_nom(char * nom, char * ip, char * port){
     printf("Ce pseudo est introuvable\n");
     return EXIT_FAILURE;
   }
-
-  close(file);
-  return EXIT_SUCCESS;
-}
-
-int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à améliorer)
-  printf("nom : %s\n", nom);
-  printf("\n---Suppression---\n\n");
-
-  int file, compteur=0;//, compteur2=0;
-  char * pointeur=NULL, * pointeur_text=NULL;
-  char buffer[BUFFERSIZE];
-
-  file=open("./Fichier/annuaire.txt", O_RDWR);
-
-  if(file==-1){
-    perror("Erreur ouverture du fichier :");
-    return EXIT_FAILURE;
-  }
-
-  read(file, buffer, BUFFERSIZE);
-  pointeur_text=strstr(buffer, "Annuaire :");
-  pointeur=strstr(buffer, nom);
-
-   while((read(file, buffer, BUFFERSIZE)>0)&&(pointeur==NULL)){
-     pointeur=strstr(buffer, nom);
-   }
-
-
-   if (pointeur != NULL && verif(pointeur,nom)==EXIT_SUCCESS){
-     while (pointeur_text != pointeur){
-       compteur++;
-       pointeur_text++;
-     }
-     lseek (file,compteur,SEEK_SET);
-     compteur=0;
-     while (*pointeur != '\n'){
-       compteur++;
-       pointeur++;
-     }
-     char blanc[compteur];
-     memset(blanc,' ',compteur);
-     write(file,blanc,compteur);
-   }
-   /*if (pointeur != NULL){
-     while (pointeur_text != pointeur){
-       compteur++;
-       pointeur_text++;
-     }
-     //lseek (file,compteur,SEEK_SET);
-     //compteur=0;
-     while (*pointeur != '\n'){
-       compteur++;
-       compteur2++;
-       pointeur++;
-     }
-     lseek(file, compteur, SEEK_SET);
-     bzero(buffer, BUFFERSIZE);
-     read(file, buffer, BUFFERSIZE);
-     lseek(file, compteur-compteur2, SEEK_SET);
-     write(file, buffer, BUFFERSIZE);
-   }*/
-  else{
-     printf("Nom non trouvé - impossible de supprimer\n");
-     close(file);
-     return EXIT_FAILURE;
-   }
 
   close(file);
   return EXIT_SUCCESS;
@@ -297,13 +241,11 @@ int creer_fichier(char * nom, char * pseudo, char * ext_dist){
 
 }
 
-
-/*
 int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à améliorer)
-  //printf("nom : %s\n", nom);
+
   printf("\n---Suppression---\n\n");
 
-  int file, compteur=0;//, compteur2=0;
+  int file, compteur=0, compteur2=0;
   char * pointeur=NULL, * pointeur_text=NULL;
   char buffer[BUFFERSIZE], chemin[40], nom_file[12];
   struct dirent *lecture;
@@ -311,34 +253,36 @@ int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à amél
   rep = opendir("./Fichier" );
 
   while ((lecture = readdir(rep))) {
-
+    compteur=0;
+    compteur2=0;
     if (strstr((lecture->d_name), ".txt") != NULL){
       bzero(chemin, 40);
       bzero(nom_file, 12);
       strcpy(nom_file,lecture->d_name);
       sprintf(chemin, "./Fichier/%s", nom_file);
-      printf("\n---Suppression dans : %s---\n", chemin);
+      printf("\n---Suppression dans : %s de %s---\n", chemin, nom);
       file=open(chemin, O_RDWR);
-      //printf("%s\n", lecture->d_name);
+
       if(file==-1){
           perror("Erreur ouverture du fichier :");
-          //return EXIT_FAILURE;
-          exit(EXIT_FAILURE);
+          return EXIT_FAILURE;
       }
       read(file, buffer, BUFFERSIZE);
       pointeur_text=strstr(buffer, ":");
       pointeur=strstr(buffer, nom);
 
-      while((read(file, buffer, BUFFERSIZE)>0)&&(pointeur==NULL)){
-         pointeur=strstr(buffer, nom);
+       while (buffer[compteur2] != ':'){
+         buffer[compteur2];
+         compteur2++;
        }
 
        if (pointeur != NULL && verif(pointeur,nom)==EXIT_SUCCESS){
          while (pointeur_text != pointeur){
            compteur++;
            pointeur_text++;
+
          }
-        lseek (file,compteur,SEEK_SET);
+        lseek (file,compteur+compteur2,SEEK_SET);
         compteur=0;
         while (*pointeur != '\n'){
           compteur++;
@@ -358,4 +302,3 @@ int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à amél
   closedir(rep);
   return EXIT_SUCCESS;
 }
-*/
