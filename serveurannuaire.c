@@ -1,3 +1,5 @@
+#define SERVEUR
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/types.h>
@@ -20,20 +22,17 @@
 	#define EWOULDBLOCK EAGAIN
 #endif
 
+
 static char pseudo[TAILLE_PSEUDO];
-char ext_dist[22];
- pthread_t th;
+static pthread_t th;
 
-fifo *recu,*envoi;
 
-int saisir_texte(char *chaine, int longueur);
-
-void * connexion(void* socK){
-  int sock=*((int*)socK);
+void * connexion(void* envoy){
+  fifo* envoi=(fifo*)envoy;
+  int sock=envoi->sock;
   trame trame_read;
   trame trame_write;
   trame trame1;
-  char pseudo_dist[TAILLE_PSEUDO];
   char datas[TAILLE_MAX_MESSAGE+32];
   ssize_t result_read;
   useconds_t timeToSleep=100;
@@ -58,51 +57,48 @@ void * connexion(void* socK){
 
   while(1){
     bzero(trame_read.message,TAILLE_MAX_MESSAGE);
-    timeToSleep=100;
+    timeToSleep=1000;
 
     //Phase lecture
     errno=0;
     if((nchar=read(sock,datas,TAILLE_MAX_MESSAGE+32))==0){
       printf("Connexion interrompue\n");
-      close(sock);
-      exit(EXIT_FAILURE);
+      //close(sock);
+      break;
     }
     result_read=errno;
 		//printf("buffer reçu : %s\n", buffer);
 
 
     if ((result_read != EWOULDBLOCK)&&(result_read != EAGAIN)){
-			str_to_tr(datas,&trame_read);
-			bzero(datas,sizeof(datas));
+	str_to_tr(datas,&trame_read);
+	//bzero(datas,sizeof(datas));
       timeToSleep=1;
       //printf("Type reçu: %d\n", trame_read.type_message);
 			//printf("trame reçu: %i %i %s\n", trame_read.taille, trame_read.type_message, trame_read.message);
       if (trame_read.type_message==hello){
-	       	strcpy(pseudo_dist,trame_read.message);
-	        /*s*/printf(/*datas,*/"%s vient de se connecter \n",pseudo_dist);
-          char nom[12], ip[15], port[6];
-          sscanf(trame_read.message, "%s", nom);
-					sscanf(ext_dist, "%s %s", ip, port);
-          Rajouter_extremite("annuaire",nom, ip, port, -1);
+	       	strcpy(envoi->pseudo,trame_read.message);
+	        printf("%s vient de se connecter \n",envoi->pseudo);
+          char  ip[16], port[6];
+		sscanf(envoi->ext_dist, "%s %s", ip, port);
+          Rajouter_extremite("annuaire",envoi->pseudo, ip, port, -1);
       }
       else if(trame_read.type_message==quit){
         	printf("Fermeture de connexion (en toute tranquillité)\n");
-          suppression(pseudo_dist);
-        	write(sock,(void *)&trame_read,trame_read.taille);
-        	close(sock);
+		write(sock,datas,TAILLE_MAX_MESSAGE+32);
+		break;
         	//exit(EXIT_FAILURE);
       }
       else if (trame_read.type_message==annuaireAsk){
-          char * port="", * ip="";
+          char *port, *ip;
           port=calloc(sizeof(int), 6);
-          ip=calloc(sizeof(int), 15);
+          ip=calloc(sizeof(int), 16);
           lecture_nom(trame_read.message,ip, port);
           //printf("L'extremite de %s est : %s %s\n", trame_read.message, ip, port);
           trame_write.type_message=texte;
           sprintf(trame_write.message,"%s %s %s",trame_read.message, ip, port);
-					trame_write.taille=strlen(trame_write.message);
-					//bzero(buffer,TAILLE_MAX_MESSAGE);
-					tr_to_str(datas, trame_write);
+	trame_write.taille=strlen(trame_write.message);
+	tr_to_str(datas, trame_write);
           write(sock, datas, TAILLE_MAX_MESSAGE+32);
           free(port);
           free(ip);
@@ -120,16 +116,16 @@ void * connexion(void* socK){
     	}
 			else if (trame_read.type_message==annuaireNew){
 				//printf("trame_read.message : %s\n", trame_read.message);
-					creer_fichier(trame_read.message, pseudo_dist, ext_dist);
+					creer_fichier(trame_read.message, envoi->pseudo, envoi->ext_dist);
 			}
 			else if (trame_read.type_message==groupJoin){
-				char ip[15], port[6];
-				sscanf(ext_dist, "%s %s", ip, port);
-				Rajouter_extremite(trame_read.message, pseudo_dist, ip, port, -1);
+				char ip[16], port[6];
+				sscanf(envoi->ext_dist, "%s %s", ip, port);
+				Rajouter_extremite(trame_read.message, envoi->pseudo, ip, port, -1);
 			}
 			else {
 			//printf("Reception d'un message texte\n");
-			/*s*/printf(/*datas,*/"[%s] %s\n",pseudo_dist,trame_read.message);	//pour une utilisation future
+			/*s*/printf(/*datas,*/"[%s] %s\n",envoi->pseudo,trame_read.message);	//pour une utilisation future
       //enfiler_fifo(recu, datas);
   	}
 	}
@@ -137,7 +133,7 @@ void * connexion(void* socK){
 
      bzero(buffer,TAILLE_MAX_MESSAGE);
     //Phase écriture
-    if(!(estVide_fifo(envoi))){
+    /*if(!(estVide_fifo(envoi))){
 
       bzero(trame_write.message,TAILLE_MAX_MESSAGE);
       timeToSleep=1;
@@ -146,8 +142,8 @@ void * connexion(void* socK){
 
       if(0==strcmp("QUIT",trame_write.message)){
         	trame_write.type_message=quit;
-          /*      else
-        	trame_write.type_message=texte;*/
+                else
+        	trame_write.type_message=texte;
       }
       else {
           trame_write.type_message=texte; }
@@ -156,11 +152,17 @@ void * connexion(void* socK){
         	printf("Type message envoyé: %d\n", trame_write.type_message);
         	tr_to_str(buffer, trame_write);
         	write(sock,buffer,TAILLE_MAX_MESSAGE+8);
-    }
+    }*/
 
     usleep(timeToSleep);
 
   }
+  
+  suppression(envoi->pseudo);
+  close(sock);
+  supprimer_fifo(envoi);
+  
+  
 }
 
 void * waitConnectFROM(){
@@ -168,6 +170,8 @@ void * waitConnectFROM(){
  int sock;
  struct sockaddr_in extremite_locale, extremite_distante;
  socklen_t length = sizeof(struct sockaddr_in);
+  fifo *envoy;
+
  //struct hostent *hote_distant;
 
 
@@ -179,7 +183,11 @@ void * waitConnectFROM(){
 
  extremite_locale.sin_family=AF_INET;
  extremite_locale.sin_addr.s_addr=htonl(INADDR_ANY);
- extremite_locale.sin_port=0;
+ extremite_locale.sin_port=0;	//à fixer
+ 
+ 
+ 
+ //RECUPERER IP/PORT DU SERVEUR
 
  if (bind(sock, (struct sockaddr *) &extremite_locale, sizeof(extremite_locale))==-1){
    perror("Erreur appel bind ");
@@ -211,10 +219,12 @@ void * waitConnectFROM(){
 
    printf("Connection sur la socket ayant le fd %d\nextremite distante\n sin_family : %d\n sin_addr.s_addr = %s\n sin_port = %d\n\n", ear, extremite_distante.sin_family, inet_ntoa(extremite_distante.sin_addr), ntohs(extremite_distante.sin_port));
 
-	 bzero(ext_dist, 22);
-	 sprintf(ext_dist, "%s %d ", inet_ntoa(extremite_distante.sin_addr),ntohs(extremite_distante.sin_port));
+   envoy=creer_fifo();
+    envoy->sock=ear;
+    
+    sprintf(envoy->ext_dist, "%s %d ", inet_ntoa(extremite_distante.sin_addr),ntohs(extremite_distante.sin_port));
 
-   pthread_create(&th,NULL,connexion,(void*) &ear);
+   pthread_create(&th,NULL,connexion,(void*) envoy);
 
 
    }
@@ -224,39 +234,17 @@ void * waitConnectFROM(){
 
 int main(int argc, char ** argv){
 
-	Rajouter_extremite("annuaire", "Serveurd'annuaire", "0.0.0.0","14650", 0);
+  Rajouter_extremite("annuaire", "Serveurd'annuaire", "0.0.0.0","14650", 0);
 
- recu=creer_fifo();
- envoi=creer_fifo();
- char datas[TAILLE_MAX_MESSAGE];
+  char datas[TAILLE_MAX_MESSAGE];
 
  //printf("Tapez : 'Serveur Annaire'");
  //saisir_texte(pseudo, TAILLE_PSEUDO);
  strcpy(pseudo, "Serveurd'annuaire");
 
 
- pthread_create(&th,NULL,waitConnectFROM,NULL);
+ waitConnectFROM();
 
- while(1){
 
-   saisir_texte(datas,sizeof(datas));
-   enfiler_fifo(envoi, datas);
-}
  return EXIT_SUCCESS;
-}
-
-
-int saisir_texte(char *chaine, int longueur){
-
-  char *entre=NULL;
-
-  if (fgets(chaine,longueur,stdin)!=NULL){
-
-    entre=strchr(chaine,'\n');
-    if (entre!=NULL){
-	*entre='\0';
-    }
-    return 1;
-  }
-  else return 0;
 }
