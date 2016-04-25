@@ -67,90 +67,96 @@ void * connexion(void* envoy){
       break;
     }
     result_read=errno;
-		//printf("buffer reçu : %s\n", buffer);
+	//printf("buffer reçu : %s\n", buffer);
 
 
     if ((result_read != EWOULDBLOCK)&&(result_read != EAGAIN)){
-			str_to_tr(datas,&trame_read);
-			//bzero(datas,sizeof(datas));
+	str_to_tr(datas,&trame_read);
+	//bzero(datas,sizeof(datas));
       timeToSleep=1;
       //printf("Type reçu: %d\n", trame_read.type_message);
-			//printf("trame reçu: %i %i %s\n", trame_read.taille, trame_read.type_message, trame_read.message);
+	//printf("trame reçu: %i %i %s\n", trame_read.taille, trame_read.type_message, trame_read.message);
       if (trame_read.type_message==hello){
-	       	strcpy(envoi->pseudo,trame_read.message);
-	        printf("%s vient de se connecter \n",envoi->pseudo);
-					bzero(datas,TAILLE_MAX_MESSAGE+32);
-          char  ip[16], port[6];
-					sscanf(envoi->ext_dist, "%s %s", ip, port);
-          if (Rajouter_extremite("annuaire",envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
-						trame_write.type_message=texte;
-						strcpy(trame_write.message, "Pseudo déjà renseigné. Veuillez en choisir un autre");
-						tr_to_str(datas,trame_write);
-						write(sock, datas, TAILLE_MAX_MESSAGE+32);
-						break;
-					}
+	strcpy(envoi->pseudo,trame_read.message);
+	printf("%s vient de se connecter \n",envoi->pseudo);
+	bzero(datas,TAILLE_MAX_MESSAGE+32);
+        char  ip[16], port[6];
+	sscanf(envoi->ext_dist, "%s %s", ip, port);
+        if (Rajouter_extremite("annuaire",envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
+	  trame_write.type_message=texte;
+	  strcpy(trame_write.message, "Pseudo déjà renseigné. Veuillez en choisir un autre");
+	  tr_to_str(datas,trame_write);
+	  write(sock, datas, TAILLE_MAX_MESSAGE+32);
+	  break;
+	}
       }
       else if(trame_read.type_message==quit){
-        	printf("Fermeture de connexion (en toute tranquillité)\n");
-					write(sock,datas,TAILLE_MAX_MESSAGE+32);
-					break;
-        	//exit(EXIT_FAILURE);
+        printf("Fermeture de connexion (en toute tranquillité)\n");
+	write(sock,datas,TAILLE_MAX_MESSAGE+32);
+	break;
       }
       else if (trame_read.type_message==annuaireAsk){
           char *port, *ip;
           port=calloc(sizeof(int), 6);
           ip=calloc(sizeof(int), 16);
-          lecture_nom(trame_read.message,ip, port);
+          if (lecture_nom(trame_read.message,ip, port)==EXIT_SUCCESS){
           //printf("L'extremite de %s est : %s %s\n", trame_read.message, ip, port);
-          trame_write.type_message=texte;
           sprintf(trame_write.message,"%s %s %s",trame_read.message, ip, port);
-					trame_write.taille=strlen(trame_write.message);
-					tr_to_str(datas, trame_write);
+	  }
+	  else{
+	    strcpy(trame_write.message, "Pseudo non renseigné");
+	  }
+	  trame_write.type_message=texte;
+	  trame_write.taille=strlen(trame_write.message);
+	  tr_to_str(datas, trame_write);
           write(sock, datas, TAILLE_MAX_MESSAGE+32);
+	  
           free(port);
           free(ip);
       }
       else if (trame_read.type_message==annuaireInfo){
-					bzero(datas,TAILLE_MAX_MESSAGE+32);
-					bzero(buffer,TAILLE_MAX_MESSAGE+8);
-          if(trame_read.taille==0){
-							info(buffer);
-					}
-					else{
-						if (info_fichier(buffer, trame_read.message)==EXIT_FAILURE){
-							trame_write.type_message=texte;
-							strcpy(trame_write.message, "Le groupe demandé n'existe pas");
-							tr_to_str(datas,trame_write);
-							write(sock, datas, TAILLE_MAX_MESSAGE+32);
-						}
-					}
-          trame_write.type_message=texte;
-          sprintf(trame_write.message,"%s",buffer);
-					trame_write.taille=strlen(trame_write.message);
-          tr_to_str(datas,trame_write);
-          write(sock, datas, TAILLE_MAX_MESSAGE+32);
-
-    	}
-			else if (trame_read.type_message==annuaireNew){
-				//printf("trame_read.message : %s\n", trame_read.message);
-					creer_fichier(trame_read.message, envoi->pseudo, envoi->ext_dist);
-			}
-			else if (trame_read.type_message==groupJoin){
-				char ip[16], port[6];
-				sscanf(envoi->ext_dist, "%s %s", ip, port);
-				if (Rajouter_extremite(trame_read.message, envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
-					trame_write.type_message=texte;
-					strcpy(trame_write.message, "Pseudo déjà renseigné ou bien le groupe n'existe pas");
-					tr_to_str(datas,trame_write);
-					write(sock, datas, TAILLE_MAX_MESSAGE+32);
-				}
-			}
-			else {
-			//printf("Reception d'un message texte\n");
-			/*s*/printf(/*datas,*/"[%s] %s\n",envoi->pseudo,trame_read.message);	//pour une utilisation future
-      //enfiler_fifo(recu, datas);
-  	}
+	bzero(datas,TAILLE_MAX_MESSAGE+32);
+	bzero(buffer,TAILLE_MAX_MESSAGE+8);
+        if(trame_read.taille==0){
+	  info(buffer);
 	}
+	else{
+	  if (info_fichier(buffer, trame_read.message)==EXIT_FAILURE){
+	    trame_write.type_message=texte;
+	    strcpy(trame_write.message, "Le groupe demandé n'existe pas");
+	    trame_write.taille=strlen(trame_write.message);
+	    tr_to_str(datas,trame_write);
+	    write(sock, datas, TAILLE_MAX_MESSAGE+32);
+	  }
+	}
+        trame_write.type_message=texte;
+        sprintf(trame_write.message,"%s",buffer);
+	trame_write.taille=strlen(trame_write.message);
+        tr_to_str(datas,trame_write);
+        write(sock, datas, TAILLE_MAX_MESSAGE+32);
+
+      }
+      else if (trame_read.type_message==annuaireNew){
+	//printf("trame_read.message : %s\n", trame_read.message);
+	creer_fichier(trame_read.message, envoi->pseudo, envoi->ext_dist);
+      }
+      else if (trame_read.type_message==groupJoin){
+	char ip[16], port[6];
+	sscanf(envoi->ext_dist, "%s %s", ip, port);
+	if (Rajouter_extremite(trame_read.message, envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
+	  trame_write.type_message=texte;
+	  strcpy(trame_write.message, "Pseudo déjà renseigné ou bien le groupe n'existe pas");
+	  trame_write.taille=strlen(trame_write.message);
+	  tr_to_str(datas,trame_write);
+	  write(sock, datas, TAILLE_MAX_MESSAGE+32);
+	}
+      }
+      else {
+	//printf("Reception d'un message texte\n");
+	/*s*/printf(/*datas,*/"[%s] %s\n",envoi->pseudo,trame_read.message);	//pour une utilisation future
+	//enfiler_fifo(recu, datas);
+      }
+     }
 
 
      bzero(buffer,TAILLE_MAX_MESSAGE);
