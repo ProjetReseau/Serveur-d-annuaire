@@ -211,7 +211,8 @@ void * waitConnectFROM(){
  int sock;
  struct sockaddr_in extremite_locale, extremite_distante;
  socklen_t length = sizeof(struct sockaddr_in);
-  fifo *envoy;
+ char port[6];
+ fifo *envoy;
 
  //struct hostent *hote_distant;
 
@@ -250,6 +251,9 @@ void * waitConnectFROM(){
      exit(1);
  }
 
+ sprintf(port, "%d",  ntohs(extremite_locale.sin_port));
+ Rajouter_extremite("annuaire", pseudo, inet_ntoa(extremite_locale.sin_addr),port, 0);
+
  while(1){
    int ear=accept(sock, (struct sockaddr *) &extremite_distante, &length);
    if (ear == -1){
@@ -261,9 +265,9 @@ void * waitConnectFROM(){
    printf("Connection sur la socket ayant le fd %d\nextremite distante\n sin_family : %d\n sin_addr.s_addr = %s\n sin_port = %d\n\n", ear, extremite_distante.sin_family, inet_ntoa(extremite_distante.sin_addr), ntohs(extremite_distante.sin_port));
 
    envoy=creer_fifo();
-    envoy->sock=ear;
+   envoy->sock=ear;
 
-    sprintf(envoy->ext_dist, "%s %d ", inet_ntoa(extremite_distante.sin_addr),ntohs(extremite_distante.sin_port));
+   sprintf(envoy->ext_dist, "%s %d ", inet_ntoa(extremite_distante.sin_addr),ntohs(extremite_distante.sin_port));
 
    pthread_create(&th,NULL,connexion,(void*) envoy);
 
@@ -275,17 +279,11 @@ void * waitConnectFROM(){
 
 int main(int argc, char ** argv){
   
-  signal(SIGINT, gestionnaire);
+ signal(SIGINT, gestionnaire);
 
-  Rajouter_extremite("annuaire", "Serveurd'annuaire", "0.0.0.0","14650", 0);
-
- //printf("Tapez : 'Serveur Annaire'");
- //saisir_texte(pseudo, TAILLE_PSEUDO);
  strcpy(pseudo, "Serveurd'annuaire");
 
-
  waitConnectFROM();
-
 
  return EXIT_SUCCESS;
 }
