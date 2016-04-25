@@ -1,12 +1,14 @@
 #define SERVEUR
+#define _XOPEN_SOURCE
 
 #include<stdio.h>
+#include <signal.h>
 #include<stdlib.h>
 #include<sys/types.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
-#include <unistd.h>
+#include<unistd.h>
 #include<string.h>
 #include<strings.h>
 #include<netdb.h>
@@ -26,8 +28,17 @@
 static char pseudo[TAILLE_PSEUDO];
 static pthread_t th;
 
+void gestionnaire (int numero)
+{
+   printf("\n---Suppression des fichiers---\n");
+   system("rm -rf ./Fichier/*");
+   system("touch ./Fichier/annuaire.txt");
+}
 
 void * connexion(void* envoy){
+  
+
+  
   fifo* envoi=(fifo*)envoy;
   int sock=envoi->sock;
   trame trame_read;
@@ -63,25 +74,27 @@ void * connexion(void* envoy){
     errno=0;
     if((nchar=read(sock,datas,TAILLE_MAX_MESSAGE+32))==0){
       printf("Connexion interrompue\n");
-      //close(sock);
       break;
     }
     result_read=errno;
-	//printf("buffer reçu : %s\n", buffer);
 
 
     if ((result_read != EWOULDBLOCK)&&(result_read != EAGAIN)){
-	str_to_tr(datas,&trame_read);
-	//bzero(datas,sizeof(datas));
+      
+      str_to_tr(datas,&trame_read);
+      //bzero(datas,sizeof(datas));
       timeToSleep=1;
       //printf("Type reçu: %d\n", trame_read.type_message);
-	//printf("trame reçu: %i %i %s\n", trame_read.taille, trame_read.type_message, trame_read.message);
+      //printf("trame reçu: %i %i %s\n", trame_read.taille, trame_read.type_message, trame_read.message);
+     
       if (trame_read.type_message==hello){
-	strcpy(envoi->pseudo,trame_read.message);
+	char  ip[16], port[6];
+	//strcpy(envoi->pseudo,trame_read.message);
+	sscanf(trame_read.message, "%s %s", envoi->pseudo, port);
 	printf("%s vient de se connecter \n",envoi->pseudo);
 	bzero(datas,TAILLE_MAX_MESSAGE+32);
-        char  ip[16], port[6];
-	sscanf(envoi->ext_dist, "%s %s", ip, port);
+	//sscanf(envoi->ext_dist, "%s %s", ip, port);
+	sscanf(envoi->ext_dist, "%s", ip);
         if (Rajouter_extremite("annuaire",envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
 	  trame_write.type_message=texte;
 	  strcpy(trame_write.message, "Pseudo déjà renseigné. Veuillez en choisir un autre");
@@ -110,7 +123,6 @@ void * connexion(void* envoy){
 	  trame_write.taille=strlen(trame_write.message);
 	  tr_to_str(datas, trame_write);
           write(sock, datas, TAILLE_MAX_MESSAGE+32);
-	  
           free(port);
           free(ip);
       }
@@ -192,7 +204,6 @@ void * connexion(void* envoy){
 
 	return;
 
-
 }
 
 void * waitConnectFROM(){
@@ -263,6 +274,8 @@ void * waitConnectFROM(){
 
 
 int main(int argc, char ** argv){
+  
+  signal(SIGINT, gestionnaire);
 
   Rajouter_extremite("annuaire", "Serveurd'annuaire", "0.0.0.0","14650", 0);
 
