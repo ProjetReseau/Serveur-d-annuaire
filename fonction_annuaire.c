@@ -161,7 +161,7 @@ int Rajouter_extremite(char * nom_file, char * nom, char * ip, char * port, int 
 
   sprintf (extremite, "%s %s %s\n-", nom, ip, port);
   sprintf(chemin, "./Fichier/%s.txt", nom_file);
-  file=open(chemin, O_RDWR | O_CREAT, 0666);
+  file=open(chemin, O_RDWR);
   printf("chemin %s\n", chemin);
   if(file==-1){
     perror("Erreur ouverture du fichier :");
@@ -181,7 +181,7 @@ int Rajouter_extremite(char * nom_file, char * nom, char * ip, char * port, int 
   if (pointeur != NULL && verif(pointeur, nom)==EXIT_SUCCESS){
     printf("Ce pseudo est déjà renseigné\n");
     close(file);
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
   }
   else {
     if (end==-1) lseek(file,end,SEEK_END);
@@ -247,7 +247,7 @@ int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à amél
 
   int file, compteur=0, compteur2=0;
   char * pointeur=NULL, * pointeur_text=NULL;
-  char buffer[BUFFERSIZE], chemin[40], nom_file[12];
+  char buffer[BUFFERSIZE], chemin[60], nom_file[50];
   struct dirent *lecture;
   DIR *rep;
   rep = opendir("./Fichier" );
@@ -256,11 +256,11 @@ int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à amél
     compteur=0;
     compteur2=0;
     if (strstr((lecture->d_name), ".txt") != NULL){
-      bzero(chemin, 40);
-      bzero(nom_file, 12);
+      bzero(chemin, 60);
+      bzero(nom_file, 50);
       strcpy(nom_file,lecture->d_name);
       sprintf(chemin, "./Fichier/%s", nom_file);
-      printf("\n---Suppression dans : %s de %s---\n", chemin, nom);
+      printf("\nSuppression dans : %s de %s\n", chemin, nom);
       file=open(chemin, O_RDWR);
 
       if(file==-1){
@@ -291,7 +291,7 @@ int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à amél
          char blanc[compteur];
          memset(blanc,' ',compteur);
          write(file,blanc,compteur);
-         printf("\n---Fin suppression dans : %s---\n", chemin);
+         printf("\nFin suppression dans : %s\n", chemin);
      }
      else{
         printf("Nom non trouvé - impossible de supprimer\n");
