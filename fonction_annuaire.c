@@ -12,6 +12,9 @@
 #define BUFFERSIZE 2048
 
 int info_fichier(char * message, char * nom_fichier){
+  
+  printf("\n---Lecture dans %s---\n", nom_fichier);
+  
   char buffer[BUFFERSIZE];
   char *pointeur = NULL;
   char chemin[40], mess[100];
@@ -21,7 +24,7 @@ int info_fichier(char * message, char * nom_fichier){
   int file=open(chemin, O_RDONLY);
 
   if(file==-1){
-    perror("Erreur ouverture du fichier :");
+    perror("Erreur ouverture du fichier ");
     return EXIT_FAILURE;
   }
 
@@ -43,7 +46,7 @@ int info_fichier(char * message, char * nom_fichier){
       }
     }
   sprintf(mess,"%s", message);
-  printf("message : %s\n", mess);
+  //printf("message : %s\n", mess);
   sprintf(message,"Personnes présentes dans le groupe %s :\n%s", nom_fichier, mess);
   close(file);
   return EXIT_SUCCESS;
@@ -54,27 +57,27 @@ int info(char * message){
   char groupe[100], mess[200];
   bzero(groupe, 100);
   bzero(mess, 200);
-  //system("ls ./Fichier | grep ^[^a][^n][^n][^u][^a][^i][^r][^e] > resultat.txt");
+  system("ls ./Fichier | grep ^[^a][^n][^n][^u][^a][^i][^r][^e] > resultat.txt");
 
-  system("ls ./Fichier > resultat.txt");
+  //system("ls ./Fichier > resultat.txt");
   int file2=open("resultat.txt", O_RDONLY);
 
   if(file2==-1){
-    perror("Erreur ouverture du fichier :");
+    perror("Erreur ouverture du fichier ");
     return EXIT_FAILURE;
   }
   read(file2, groupe, BUFFERSIZE);
   close(file2);
   system("rm resultat.txt");
 
-  printf("\n---Lecture de l'annuaire---\n\n");
+  printf("\n---Lecture de l'annuaire et des groupes---\n");
 
   char buffer[BUFFERSIZE];
   char *pointeur = NULL;
   int file=open("./Fichier/annuaire.txt", O_RDONLY);
 
   if(file==-1){
-    perror("Erreur ouverture du fichier :");
+    perror("Erreur ouverture du fichier ");
     return EXIT_FAILURE;
   }
 
@@ -96,7 +99,7 @@ int info(char * message){
       }
   }
   sprintf(mess,"%s", message);
-  printf("message : %s\n", mess);
+  //printf("message : %s\n", mess);
   sprintf(message,"\nPersonnes présentes : \n%sGroupes présents :\n%s", mess, groupe);
   close(file);
   return EXIT_SUCCESS;
@@ -104,8 +107,8 @@ int info(char * message){
 
 int lecture_nom(char * nom, char * ip, char * port){
 
-  printf("\n---Lecture---\n\n");
-  printf("nom : %s\n", nom);
+  printf("\n---Recherche de l'extremite de %s---\n", nom);
+  //printf("nom : %s\n", nom);
   int file;
   char * pointeur=NULL;
   char buffer[BUFFERSIZE];
@@ -113,19 +116,19 @@ int lecture_nom(char * nom, char * ip, char * port){
   file=open("./Fichier/annuaire.txt", O_RDONLY);
 
   if(file==-1){
-    perror("Erreur ouverture du fichier :");
+    perror("Erreur ouverture du fichier ");
     return EXIT_FAILURE;
   }
 
   while((read(file, buffer, BUFFERSIZE)>0)&&(pointeur==NULL)){
     pointeur=strstr(buffer, nom);
   }
-
+/*
   if (pointeur == NULL){
     printf("Ce pseudo est introuvable\n");
     return EXIT_SUCCESS;
   }
-
+*/
   if (pointeur != NULL && verif(pointeur, nom)==EXIT_SUCCESS){
     while (*pointeur != ' '){
       pointeur++;
@@ -142,7 +145,7 @@ int lecture_nom(char * nom, char * ip, char * port){
     }
   }
   else {
-    printf("Ce pseudo est introuvable\n");
+    printf("Ce pseudo n'est pas renseigné\n");
     return EXIT_FAILURE;
   }
 
@@ -152,7 +155,7 @@ int lecture_nom(char * nom, char * ip, char * port){
 
 int Rajouter_extremite(char * nom_file, char * nom, char * ip, char * port, int end){
 
-  printf("\n---Rajout d'une extremite---\n\n");
+  printf("\n---Rajout d'une extremite dans %s---\n", nom_file);
 
   int file;
   char extremite[40], chemin[40];
@@ -162,9 +165,9 @@ int Rajouter_extremite(char * nom_file, char * nom, char * ip, char * port, int 
   sprintf (extremite, "%s %s %s\n-", nom, ip, port);
   sprintf(chemin, "./Fichier/%s.txt", nom_file);
   file=open(chemin, O_RDWR);
-  printf("chemin %s\n", chemin);
+  //printf("chemin %s\n", chemin);
   if(file==-1){
-    perror("Erreur ouverture du fichier :");
+    perror("Erreur ouverture du fichier ");
     return EXIT_FAILURE;
   }
 
@@ -195,28 +198,31 @@ int verif(char * lu, char * nom){
 
   int compteur=0;
 
-  while(*lu==*nom && *lu != ' ' && *nom != ' '){
-    //printf("1 : lu : %c nom : %c\n", *lu, *nom);
-    lu++;
-    nom++;
-    compteur++;
-  }
-  //printf("2 : lu : %c nom : %c\n", *lu, *nom);
-  if(*lu != ' ' && *nom != ' '){
-    //printf("3B : lu : %c nom : %c\n", *lu, *nom);
-    return EXIT_FAILURE;
+  lu--;
+
+  if (*lu != '\n'){
+   return EXIT_FAILURE;
   }
   else{
-    //printf("3A : lu : %c nom : %c\n", *lu, *nom);
-    lu=lu-compteur;
-    return EXIT_SUCCESS;
-
+    lu++;
+    while(*lu==*nom && *lu != ' ' && *nom != ' '){
+      lu++;
+      nom++;
+      compteur++;
+    }
+    if(*lu != ' ' && *nom != ' '){
+      return EXIT_FAILURE;
+    }
+    else{
+      lu=lu-compteur;
+      return EXIT_SUCCESS;
+    }
   }
 }
 
 int creer_fichier(char * nom, char * pseudo, char * ext_dist){
 
-  printf("\n---Création d'un groupe---\n\n");
+  printf("\n---Création d'un groupe---\n");
   //printf("pseudo : %s ext_dist :%s\n", pseudo, ext_dist);
   char chemin[40], entete[40], extremite[40];
   int file;
@@ -225,7 +231,7 @@ int creer_fichier(char * nom, char * pseudo, char * ext_dist){
   file=open(chemin, O_RDWR | O_CREAT, 0666);
 
   if(file==-1){
-    perror("Erreur ouverture du fichier :");
+    perror("Erreur ouverture du fichier ");
     return EXIT_FAILURE;
   }
 
@@ -243,7 +249,7 @@ int creer_fichier(char * nom, char * pseudo, char * ext_dist){
 
 int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à améliorer)
 
-  printf("\n---Suppression---\n\n");
+  printf("\n---Suppression---\n");
 
   int file, compteur=0, compteur2=0;
   char * pointeur=NULL, * pointeur_text=NULL;
@@ -264,7 +270,7 @@ int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à amél
       file=open(chemin, O_RDWR);
 
       if(file==-1){
-          perror("Erreur ouverture du fichier :");
+          perror("Erreur ouverture du fichier ");
           return EXIT_FAILURE;
       }
       read(file, buffer, BUFFERSIZE);
