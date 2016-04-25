@@ -71,22 +71,29 @@ void * connexion(void* envoy){
 
 
     if ((result_read != EWOULDBLOCK)&&(result_read != EAGAIN)){
-	str_to_tr(datas,&trame_read);
-	//bzero(datas,sizeof(datas));
+			str_to_tr(datas,&trame_read);
+			//bzero(datas,sizeof(datas));
       timeToSleep=1;
       //printf("Type reçu: %d\n", trame_read.type_message);
 			//printf("trame reçu: %i %i %s\n", trame_read.taille, trame_read.type_message, trame_read.message);
       if (trame_read.type_message==hello){
 	       	strcpy(envoi->pseudo,trame_read.message);
 	        printf("%s vient de se connecter \n",envoi->pseudo);
+					bzero(datas,TAILLE_MAX_MESSAGE+32);
           char  ip[16], port[6];
-		sscanf(envoi->ext_dist, "%s %s", ip, port);
-          Rajouter_extremite("annuaire",envoi->pseudo, ip, port, -1);
+					sscanf(envoi->ext_dist, "%s %s", ip, port);
+          if (Rajouter_extremite("annuaire",envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
+						trame_write.type_message=texte;
+						strcpy(trame_write.message, "Pseudo déjà renseigné. Veuillez en choisir un autre");
+						tr_to_str(datas,trame_write);
+						write(sock, datas, TAILLE_MAX_MESSAGE+32);
+						break;
+					}
       }
       else if(trame_read.type_message==quit){
         	printf("Fermeture de connexion (en toute tranquillité)\n");
-		write(sock,datas,TAILLE_MAX_MESSAGE+32);
-		break;
+					write(sock,datas,TAILLE_MAX_MESSAGE+32);
+					break;
         	//exit(EXIT_FAILURE);
       }
       else if (trame_read.type_message==annuaireAsk){
@@ -97,16 +104,26 @@ void * connexion(void* envoy){
           //printf("L'extremite de %s est : %s %s\n", trame_read.message, ip, port);
           trame_write.type_message=texte;
           sprintf(trame_write.message,"%s %s %s",trame_read.message, ip, port);
-	trame_write.taille=strlen(trame_write.message);
-	tr_to_str(datas, trame_write);
+					trame_write.taille=strlen(trame_write.message);
+					tr_to_str(datas, trame_write);
           write(sock, datas, TAILLE_MAX_MESSAGE+32);
           free(port);
           free(ip);
       }
       else if (trame_read.type_message==annuaireInfo){
-					//bzero(datas,TAILLE_MAX_MESSAGE);
-          if(trame_read.taille==0)	info(buffer);
-					else info_fichier(buffer, trame_read.message);
+					bzero(datas,TAILLE_MAX_MESSAGE+32);
+					bzero(buffer,TAILLE_MAX_MESSAGE+8);
+          if(trame_read.taille==0){
+							info(buffer);
+					}
+					else{
+						if (info_fichier(buffer, trame_read.message)==EXIT_FAILURE){
+							trame_write.type_message=texte;
+							strcpy(trame_write.message, "Le groupe demandé n'existe pas");
+							tr_to_str(datas,trame_write);
+							write(sock, datas, TAILLE_MAX_MESSAGE+32);
+						}
+					}
           trame_write.type_message=texte;
           sprintf(trame_write.message,"%s",buffer);
 					trame_write.taille=strlen(trame_write.message);
@@ -121,7 +138,12 @@ void * connexion(void* envoy){
 			else if (trame_read.type_message==groupJoin){
 				char ip[16], port[6];
 				sscanf(envoi->ext_dist, "%s %s", ip, port);
-				Rajouter_extremite(trame_read.message, envoi->pseudo, ip, port, -1);
+				if (Rajouter_extremite(trame_read.message, envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
+					trame_write.type_message=texte;
+					strcpy(trame_write.message, "Pseudo déjà renseigné ou bien le groupe n'existe pas");
+					tr_to_str(datas,trame_write);
+					write(sock, datas, TAILLE_MAX_MESSAGE+32);
+				}
 			}
 			else {
 			//printf("Reception d'un message texte\n");
@@ -157,12 +179,14 @@ void * connexion(void* envoy){
     usleep(timeToSleep);
 
   }
-  
+
   suppression(envoi->pseudo);
   close(sock);
   supprimer_fifo(envoi);
-  
-  
+
+	return;
+
+
 }
 
 void * waitConnectFROM(){
@@ -184,9 +208,9 @@ void * waitConnectFROM(){
  extremite_locale.sin_family=AF_INET;
  extremite_locale.sin_addr.s_addr=htonl(INADDR_ANY);
  extremite_locale.sin_port=0;	//à fixer
- 
- 
- 
+
+
+
  //RECUPERER IP/PORT DU SERVEUR
 
  if (bind(sock, (struct sockaddr *) &extremite_locale, sizeof(extremite_locale))==-1){
@@ -221,7 +245,7 @@ void * waitConnectFROM(){
 
    envoy=creer_fifo();
     envoy->sock=ear;
-    
+
     sprintf(envoy->ext_dist, "%s %d ", inet_ntoa(extremite_distante.sin_addr),ntohs(extremite_distante.sin_port));
 
    pthread_create(&th,NULL,connexion,(void*) envoy);
@@ -235,8 +259,6 @@ void * waitConnectFROM(){
 int main(int argc, char ** argv){
 
   Rajouter_extremite("annuaire", "Serveurd'annuaire", "0.0.0.0","14650", 0);
-
-  char datas[TAILLE_MAX_MESSAGE];
 
  //printf("Tapez : 'Serveur Annaire'");
  //saisir_texte(pseudo, TAILLE_PSEUDO);
