@@ -41,6 +41,7 @@ void * connexion(void* envoy){
   
   fifo* envoi=(fifo*)envoy;
   int sock=envoi->sock;
+  int i;
   trame trame_read;
   trame trame_write;
   trame trame1;
@@ -100,12 +101,14 @@ void * connexion(void* envoy){
 	  strcpy(trame_write.message, "Pseudo déjà renseigné. Veuillez en choisir un autre");
 	  tr_to_str(datas,trame_write);
 	  write(sock, datas, TAILLE_MAX_MESSAGE+32);
+	  i=0;
 	  break;
 	}
       }
       else if(trame_read.type_message==quit){
         printf("Fermeture de connexion (en toute tranquillité)\n");
 	write(sock,datas,TAILLE_MAX_MESSAGE+32);
+	i=1;
 	break;
       }
       else if (trame_read.type_message==annuaireAsk){
@@ -199,8 +202,9 @@ void * connexion(void* envoy){
     usleep(timeToSleep);
 
   }
-
-  suppression(envoi->pseudo);
+  if (i==1){
+    suppression(envoi->pseudo);
+  }
   close(sock);
   supprimer_fifo(envoi);
 
