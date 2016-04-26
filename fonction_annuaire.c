@@ -83,8 +83,10 @@ int info(char * message){
 
   read(file, buffer, BUFFERSIZE);
   pointeur=strstr(buffer, "-");
-
-  pointeur+=1;
+  pointeur+=2;
+  while (*pointeur != '\n' && *pointeur != '-'){
+        pointeur++;
+  }
   while(*pointeur != '-'){
       while (*pointeur != '\n' && *pointeur != '-'){
         pointeur++;
@@ -99,7 +101,7 @@ int info(char * message){
       }
   }
   sprintf(mess,"%s", message);
-  //printf("message : %s\n", mess);
+  printf("message : %s\n", mess);
   sprintf(message,"\nPersonnes présentes : \n%sGroupes présents :\n%s", mess, groupe);
   close(file);
   return EXIT_SUCCESS;
@@ -249,7 +251,7 @@ int creer_fichier(char * nom, char * pseudo, char * ext_dist){
 
 int suppression(char * nom){ //Remplace la ligne ciblé par des espaces(à améliorer)
 
-  printf("\n---Suppression---\n");
+  printf("\n---Suppression ---\n");
 
   int file, compteur=0, compteur2=0;
   char * pointeur=NULL, * pointeur_text=NULL;
