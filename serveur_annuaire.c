@@ -155,13 +155,15 @@ void * connexion(void* envoy){
       else if (trame_read.type_message==groupJoin){
 	char ip[16], port[6];
 	sscanf(envoi->ext_dist, "%s %s", ip, port);
-	if (Rajouter_extremite(trame_read.message, envoi->pseudo, ip, port, -1)==EXIT_FAILURE){
-	  trame_write.type_message=texte;
-	  strcpy(trame_write.message, "Pseudo déjà renseigné ou bien le groupe n'existe pas");
-	  trame_write.taille=strlen(trame_write.message);
-	  tr_to_str(datas,trame_write);
-	  write(sock, datas, TAILLE_MAX_MESSAGE+32);
-	}
+	if (Rajouter_extremite(trame_read.message, envoi->pseudo, ip, port, -1)==EXIT_FAILURE)
+	    strcpy(trame_write.message, "Pseudo déjà renseigné ou bien le groupe n'existe pas");
+	else
+	  strcpy(trame_write.message, "Ok");
+	trame_write.type_message=texte;
+	trame_write.taille=strlen(trame_write.message);
+	tr_to_str(datas,trame_write);
+	write(sock, datas, TAILLE_MAX_MESSAGE+32);
+	
       }
       else {
 	//printf("Reception d'un message texte\n");
